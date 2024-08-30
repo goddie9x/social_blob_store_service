@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,9 +43,22 @@ func (bs *BlobStore) releaseTransaction(tx pgx.Tx, err error, ctx context.Contex
 		tx.Commit(ctx)
 	}
 }
+func (bs *BlobStore) scanBlob(row pgx.Row) (*Blob, error) {
+	var blob Blob
+	err := row.Scan(
+		&blob.ID, &blob.FileName, &blob.Size, &blob.ContentType,
+		&blob.CreatedAt, &blob.LastModified, &blob.DataOID,
+		&blob.OwnerID, &blob.TargetID, &blob.TargetType, &blob.Type,
+	)
 
-func (bs *BlobStore) SaveBlob(filename string, contentType string, data io.Reader) (*Blob, error) {
-	if !utils.IsValidFileType(contentType, []string{"image/", "video/"}) {
+	if err != nil {
+		return nil, err
+	}
+	return &blob, nil
+}
+
+func (bs *BlobStore) SaveBlob(data io.Reader, blob *Blob) (*Blob, error) {
+	if !utils.IsValidFileType(blob.ContentType, []string{"image/", "video/"}) {
 		return nil, fmt.Errorf("Invalid file type")
 	}
 
@@ -80,22 +94,18 @@ func (bs *BlobStore) SaveBlob(filename string, contentType string, data io.Reade
 		return nil, err
 	}
 
-	id := uuid.New().String()
 	now := time.Now()
-	blob := &Blob{
-		ID:           id,
-		FileName:     filename,
-		Size:         size,
-		ContentType:  contentType,
-		CreatedAt:    now,
-		LastModified: now,
-		DataOID:      oid,
-	}
-
-	_, err = tx.Exec(ctx, `
-        INSERT INTO blobs (id, filename, size, content_type, created_at, last_modified, data_oid)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, blob.ID, blob.FileName, blob.Size, blob.ContentType, blob.CreatedAt, blob.LastModified, blob.DataOID)
+	blob.ID = uuid.New().String()
+	blob.Size = size
+	blob.CreatedAt = now
+	blob.DataOID = oid
+	_, err = tx.Exec(ctx,
+		`INSERT INTO blobs (id, filename, size, content_type, created_at,
+        last_modified, data_oid, owner_id, target_id, target_type, type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		blob.ID, blob.FileName, blob.Size, blob.ContentType, blob.CreatedAt,
+		blob.LastModified, blob.DataOID, blob.OwnerID, blob.TargetID, blob.TargetType, blob.Type,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save metadata: %v", err)
 	}
@@ -116,14 +126,11 @@ func (bs *BlobStore) GetBlob(id string) (*Blob, error) {
 	}
 	defer conn.Release()
 
-	var blob Blob
-	err = conn.QueryRow(ctx, `
-        SELECT id, filename, size, content_type, created_at, last_modified, data_oid 
+	row := conn.QueryRow(ctx, `
+        SELECT * 
         FROM blobs WHERE id = $1
-    `, id).Scan(
-		&blob.ID, &blob.FileName, &blob.Size, &blob.ContentType,
-		&blob.CreatedAt, &blob.LastModified, &blob.DataOID,
-	)
+    `, id)
+	blob, err := bs.scanBlob(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("blob not found")
@@ -131,21 +138,40 @@ func (bs *BlobStore) GetBlob(id string) (*Blob, error) {
 		return nil, fmt.Errorf("failed to retrieve blob metadata: %v", err)
 	}
 
-	return &blob, nil
+	return blob, nil
 }
 
-func (bs *BlobStore) GetListBlobWithPagination(limit, offset int) ([]*Blob, error) {
+func (bs *BlobStore) GetListBlobWithPagination(limit, page int, filters map[string]interface{}) ([]*Blob, error) {
 	ctx := context.Background()
 	conn, err := bs.genConnect(ctx)
-
 	if err != nil {
 		return nil, err
 	}
-	rows, err := conn.Query(ctx, `
-        SELECT id, filename, size, content_type, created_at, last_modified, data_oid 
-        FROM blobs ORDER BY created_at DESC LIMIT $1 OFFSET $2
-    `, limit, offset)
 
+	offset := (page - 1) * limit
+
+	query := `
+        SELECT *
+        FROM blobs 
+    `
+
+	whereClauses := []string{}
+	args := []interface{}{limit, offset}
+
+	argIdx := 3 // Starting index for additional args (1 and 2 are for limit and offset)
+	for key, value := range filters {
+		whereClauses = append(whereClauses, fmt.Sprintf("%s = $%d", key, argIdx))
+		args = append(args, value)
+		argIdx++
+	}
+
+	if len(whereClauses) > 0 {
+		query += "WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+
+	rows, err := conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve blob list: %v", err)
 	}
@@ -153,15 +179,11 @@ func (bs *BlobStore) GetListBlobWithPagination(limit, offset int) ([]*Blob, erro
 
 	blobs := []*Blob{}
 	for rows.Next() {
-		var blob Blob
-		err := rows.Scan(
-			&blob.ID, &blob.FileName, &blob.Size, &blob.ContentType,
-			&blob.CreatedAt, &blob.LastModified, &blob.DataOID,
-		)
+		blob, err := bs.scanBlob(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan blob row: %v", err)
 		}
-		blobs = append(blobs, &blob)
+		blobs = append(blobs, blob)
 	}
 
 	return blobs, nil

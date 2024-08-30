@@ -3,8 +3,12 @@ package config
 import "github.com/spf13/viper"
 
 type Config struct {
-	DatabaseURL string
-	Port        string
+	DatabaseURL              string
+	Port                     int
+	EurekaDiscoveryServerUrl string
+	EurekaAppName            string
+	IpAddr                   string
+	HostName                 string
 }
 
 func Load() (*Config, error) {

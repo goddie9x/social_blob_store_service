@@ -2,7 +2,9 @@ package api
 
 import (
 	"blob_store_service/internal/blobstore"
+	"blob_store_service/pkg/middlewares"
 	"mime/multipart"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -20,7 +22,7 @@ func NewHandler(bs *blobstore.BlobStore) *Handler {
 	return &Handler{bs: bs}
 }
 
-func (h *Handler) handleSaveBlob(fileHeader *multipart.FileHeader, wg *sync.WaitGroup, blobsChan chan *blobstore.Blob, errChan chan error) {
+func (h *Handler) handleSaveBlob(fileHeader *multipart.FileHeader, wg *sync.WaitGroup, blobsChan chan *blobstore.Blob, errChan chan error, blob *blobstore.Blob) {
 	defer wg.Done()
 
 	file, err := fileHeader.Open()
@@ -29,17 +31,19 @@ func (h *Handler) handleSaveBlob(fileHeader *multipart.FileHeader, wg *sync.Wait
 		return
 	}
 	defer file.Close()
-	blob, err := h.bs.SaveBlob(fileHeader.Filename, fileHeader.Header.Get("Content-Type"), file)
+	blob.FileName = fileHeader.Filename
+	blob.ContentType = fileHeader.Header.Get("Content-Type")
+	savedBlob, err := h.bs.SaveBlob(file, blob)
 	if err != nil {
 		errChan <- err
 		return
 	}
-	blobsChan <- blob
+	blobsChan <- savedBlob
 }
-func (h *Handler) UploadBlob(c *gin.Context) {
-	r := c.Request
+func (h *Handler) UploadBlobs(c *gin.Context) {
+	currentUser := middlewares.GetUserAuthFromContext(c)
+	form, err := c.MultipartForm()
 
-	err := r.ParseMultipartForm(100 << 20)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Unable to parse form",
@@ -47,7 +51,7 @@ func (h *Handler) UploadBlob(c *gin.Context) {
 		return
 	}
 
-	files := r.MultipartForm.File["files"]
+	files := form.File["files"]
 	amountFiles := len(files)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -59,11 +63,16 @@ func (h *Handler) UploadBlob(c *gin.Context) {
 	blobsChan := make(chan *blobstore.Blob, amountFiles)
 	errChan := make(chan error, amountFiles)
 	wg := sync.WaitGroup{}
+	var generalBlob blobstore.Blob
+	if err := c.Bind(&generalBlob); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	generalBlob.OwnerID = currentUser.UserId
 
 	for _, fileHeader := range files {
 		wg.Add(1)
-
-		go h.handleSaveBlob(fileHeader, &wg, blobsChan, errChan)
+		go h.handleSaveBlob(fileHeader, &wg, blobsChan, errChan, generalBlob.Clone())
 	}
 
 	wg.Wait()
@@ -87,7 +96,29 @@ func (h *Handler) UploadBlob(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, blobs)
 }
+func (h *Handler) GetBlobInfo(c *gin.Context) {
+	id := c.Param("id")
+	blob, err := h.bs.GetBlob(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, blob)
+}
+func (h *Handler) GetListBlobInfoWithPagination(c *gin.Context) {
+	currentUser := middlewares.GetUserAuthFromContext(c)
+	pageParam, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		pageParam = 1
+	}
+	filter := map[string]interface{}{
+		"owner_id": currentUser.UserId,
+	}
 
+	h.bs.GetListBlobWithPagination(10, pageParam, filter)
+}
 func (h *Handler) DownloadBlob(c *gin.Context) {
 	id := c.Param("id")
 	blob, err := h.bs.GetBlob(id)
