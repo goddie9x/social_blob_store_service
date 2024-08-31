@@ -1,6 +1,7 @@
 package blobstore
 
 import (
+	"blob_store_service/pkg/middlewares"
 	"blob_store_service/pkg/utils"
 	"context"
 	"database/sql"
@@ -58,8 +59,9 @@ func (bs *BlobStore) scanBlob(row pgx.Row) (*Blob, error) {
 }
 
 func (bs *BlobStore) SaveBlob(data io.Reader, blob *Blob) (*Blob, error) {
-	if !utils.IsValidFileType(blob.ContentType, []string{"image/", "video/"}) {
-		return nil, fmt.Errorf("Invalid file type")
+	fileType := utils.GetValidFileType(blob.ContentType, []string{string(Image), string(Video)})
+	if fileType == "" {
+		return nil, fmt.Errorf("invalid file type")
 	}
 
 	ctx := context.Background()
@@ -99,6 +101,7 @@ func (bs *BlobStore) SaveBlob(data io.Reader, blob *Blob) (*Blob, error) {
 	blob.Size = size
 	blob.CreatedAt = now
 	blob.DataOID = oid
+	blob.Type = BlobType(fileType)
 	_, err = tx.Exec(ctx,
 		`INSERT INTO blobs (id, filename, size, content_type, created_at,
         last_modified, data_oid, owner_id, target_id, target_type, type)
@@ -135,7 +138,7 @@ func (bs *BlobStore) GetBlob(id string) (*Blob, error) {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("blob not found")
 		}
-		return nil, fmt.Errorf("failed to retrieve blob metadata: %v", err)
+		return nil, fmt.Errorf("failed to retrieve blob %s metadata: %v", id, err)
 	}
 
 	return blob, nil
@@ -189,7 +192,7 @@ func (bs *BlobStore) GetListBlobWithPagination(limit, page int, filters map[stri
 	return blobs, nil
 }
 
-func (bs *BlobStore) DeleteBlob(id string) error {
+func (bs *BlobStore) DeleteBlob(id string, currentUser middlewares.UserAuth) error {
 	ctx := context.Background()
 	conn, err := bs.genConnect(ctx)
 	if err != nil {
@@ -201,7 +204,9 @@ func (bs *BlobStore) DeleteBlob(id string) error {
 	if err != nil {
 		return err
 	}
-
+	if blob.OwnerID != currentUser.UserId && currentUser.Role == middlewares.User {
+		return fmt.Errorf("You do not have permission")
+	}
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %v", err)

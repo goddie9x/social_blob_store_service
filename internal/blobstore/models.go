@@ -18,6 +18,8 @@ const (
 	Story         TargetType = "story"
 	PageAvatar    TargetType = "page_avatar"
 	PageCover     TargetType = "page_cover"
+	ChatAvatar    TargetType = "chat_avatar"
+	ChatCover     TargetType = "chat_cover"
 
 	Video BlobType = "video"
 	Image BlobType = "image"
@@ -28,7 +30,7 @@ type Blob struct {
 	OwnerID      string     `gorm:"index" form:"-"`
 	TargetID     string     `gorm:"index:idx_target_type" form:"targetId"`
 	TargetType   TargetType `gorm:"index:idx_target_type" form:"targetType"`
-	Type         BlobType   `gorm:"index:idx_target_type" form:"type"`
+	Type         BlobType   `gorm:"index:idx_target_type" form:"-"`
 	FileName     string
 	Size         int64
 	ContentType  string

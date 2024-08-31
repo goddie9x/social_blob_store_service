@@ -8,10 +8,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Role int
+
+const (
+	Admin Role = iota
+	Mod
+	User
+)
+
 type UserAuth struct {
 	UserId   string `json:"userId"`
 	UserName string `json:"username"`
-	Role     int    `json:"role"`
+	Role     Role   `json:"role"`
 }
 
 func GetAuthAndPutCurrentUserAuthToBody() gin.HandlerFunc {

@@ -23,7 +23,7 @@ func (d *DiscoveryServerConnect) ConnectToEurekaDiscoveryServer(appConfig *Confi
 		HealthCheckUrl:    fmt.Sprintf("http://%s:%d/health", "localhost", appConfig.Port),
 		StatusPageUrl:     fmt.Sprintf("http://%s:%d/status", "localhost", appConfig.Port),
 		HomePageUrl:       fmt.Sprintf("http://%s:%d/", "localhost", appConfig.Port),
-		LeaseInfo:         fargo.LeaseInfo{RenewalIntervalInSecs: 30, DurationInSecs: 90},
+		LeaseInfo:         fargo.LeaseInfo{RenewalIntervalInSecs: 90, DurationInSecs: 120},
 		Status:            fargo.UP,
 		SecurePortEnabled: false,
 		Port:              appConfig.Port,

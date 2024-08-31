@@ -46,7 +46,7 @@ func (h *Handler) UploadBlobs(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Unable to parse form",
+			"message": fmt.Sprintf("Unable to parse form %v", err),
 		})
 		return
 	}
@@ -142,8 +142,9 @@ func (h *Handler) DownloadBlob(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBlob(c *gin.Context) {
+	currentUser := middlewares.GetUserAuthFromContext(c)
 	id := c.Param("id")
-	err := h.bs.DeleteBlob(id)
+	err := h.bs.DeleteBlob(id, currentUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),

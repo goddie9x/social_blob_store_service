@@ -2,11 +2,11 @@ package utils
 
 import "strings"
 
-func IsValidFileType(contentType string, allowTypes []string) bool {
+func GetValidFileType(contentType string, allowTypes []string) string {
 	for _, allowType := range allowTypes {
 		if strings.HasPrefix(contentType, allowType) {
-			return true
+			return allowType
 		}
 	}
-	return false
+	return ""
 }
