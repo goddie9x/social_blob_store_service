@@ -23,7 +23,7 @@ type BlobStore struct {
 func NewBlobStore(dbConnString string) (*BlobStore, error) {
 	pool, err := pgxpool.New(context.Background(), dbConnString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database")
 	}
 
 	return &BlobStore{pool: pool}, nil
