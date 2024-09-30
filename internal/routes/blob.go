@@ -3,6 +3,7 @@ package routes
 import (
 	api "blob_store_service/internal/apis"
 	eureka_route "blob_store_service/pkg/eureka"
+	"blob_store_service/pkg/middlewares"
 
 	"time"
 
@@ -16,8 +17,9 @@ func StartMappingBlobRoute(r *gin.Engine, handler *api.Handler) {
 		{
 			blobs := v1.Group("/blobs")
 			{
-				blobs.POST("/upload", handler.UploadBlobs)
 				blobs.GET("/download/:id", handler.DownloadBlob)
+				blobs.Use(middlewares.PutAuthToContext())
+				blobs.POST("/upload", handler.UploadBlobs)
 				blobs.DELETE("/delete/:id", handler.DeleteBlob)
 			}
 		}
