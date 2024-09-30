@@ -1,8 +1,8 @@
 package blobstore
 
 import (
+	"blob_store_service/internal/utils"
 	"blob_store_service/pkg/middlewares"
-	"blob_store_service/pkg/utils"
 	"context"
 	"database/sql"
 	"fmt"
