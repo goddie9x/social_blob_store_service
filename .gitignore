@@ -5,3 +5,4 @@ go.work
 config.yaml
 main
 pkg/
+.env

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"post_service/pkg/constants"
 	"strings"
 	"time"
 
@@ -204,7 +205,7 @@ func (bs *BlobStore) DeleteBlob(id string, currentUser middlewares.UserAuth) err
 	if err != nil {
 		return err
 	}
-	if blob.OwnerID != currentUser.UserId && currentUser.Role == middlewares.User {
+	if blob.OwnerID != currentUser.UserId && currentUser.Role == constants.User {
 		return fmt.Errorf("You do not have permission")
 	}
 	tx, err := conn.Begin(ctx)

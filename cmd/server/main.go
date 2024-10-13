@@ -3,21 +3,16 @@ package main
 import (
 	api "blob_store_service/internal/apis"
 	"blob_store_service/internal/blobstore"
-	"blob_store_service/internal/config"
 	"blob_store_service/internal/routes"
-	"fmt"
+	"blob_store_service/pkg/dotenv"
 	"log"
+	"post_service/pkg/configs"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	bs, err := blobstore.NewBlobStore(cfg.DatabaseURL)
+	bs, err := blobstore.NewBlobStore(dotenv.GetEnvOrDefaultValue("CONNECTION_STRING", "postgres"))
 	if err != nil {
 		log.Fatalf("Failed to create blob store: %v", err)
 	}
@@ -27,8 +22,8 @@ func main() {
 	handler := api.NewHandler(bs)
 	routes.StartMappingBlobRoute(r, handler)
 
-	discoveryServerConnect := new(config.DiscoveryServerConnect)
+	discoveryServerConnect := new(configs.DiscoveryServerConnect)
 
-	discoveryServerConnect.ConnectToEurekaDiscoveryServer(cfg)
-	r.Run(fmt.Sprintf(":%d", cfg.Port))
+	discoveryServerConnect.ConnectToEurekaDiscoveryServer()
+	r.Run(":" + dotenv.GetEnvOrDefaultValue("API_PORT", "6543"))
 }

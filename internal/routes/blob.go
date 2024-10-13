@@ -18,7 +18,7 @@ func StartMappingBlobRoute(r *gin.Engine, handler *api.Handler) {
 			blobs := v1.Group("/blobs")
 			{
 				blobs.GET("/download/:id", handler.DownloadBlob)
-				blobs.Use(middlewares.PutAuthToContext())
+				blobs.Use(middlewares.PutAuthToContext)
 				blobs.POST("/upload", handler.UploadBlobs)
 				blobs.DELETE("/delete/:id", handler.DeleteBlob)
 			}
