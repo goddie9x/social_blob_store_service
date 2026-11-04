@@ -4,9 +4,9 @@ import (
 	api "blob_store_service/internal/apis"
 	"blob_store_service/internal/blobstore"
 	"blob_store_service/internal/routes"
-	"blob_store_service/pkg/dotenv"
+	"github.com/goddie9x/social_utils_go/dotenv"
 	"log"
-	"post_service/pkg/configs"
+	"github.com/goddie9x/social_utils_go/configs"
 
 	"github.com/gin-gonic/gin"
 )

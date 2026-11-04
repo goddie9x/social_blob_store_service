@@ -2,12 +2,12 @@ package blobstore
 
 import (
 	"blob_store_service/internal/utils"
-	"blob_store_service/pkg/middlewares"
+	"github.com/goddie9x/social_utils_go/middlewares"
 	"context"
 	"database/sql"
 	"fmt"
 	"io"
-	"post_service/pkg/constants"
+	"github.com/goddie9x/social_utils_go/constants"
 	"strings"
 	"time"
 

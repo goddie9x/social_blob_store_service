@@ -2,7 +2,7 @@ package api
 
 import (
 	"blob_store_service/internal/blobstore"
-	"blob_store_service/pkg/middlewares"
+	"github.com/goddie9x/social_utils_go/middlewares"
 	"mime/multipart"
 	"strconv"
 	"strings"

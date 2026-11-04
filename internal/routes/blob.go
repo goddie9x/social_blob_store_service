@@ -2,8 +2,8 @@ package routes
 
 import (
 	api "blob_store_service/internal/apis"
-	eureka_route "blob_store_service/pkg/eureka"
-	"blob_store_service/pkg/middlewares"
+	eureka_route "github.com/goddie9x/social_utils_go/eureka"
+	"github.com/goddie9x/social_utils_go/middlewares"
 
 	"time"
 
