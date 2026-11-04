@@ -131,7 +131,7 @@ func (h *Handler) DownloadBlob(c *gin.Context) {
 		return
 	}
 	// Only the owner (or admin/mod) can download - no anonymous access.
-	if blob.OwnerID != currentUser.UserId && currentUser.Role == constants.User {
+	if currentUser.UserId == "" || (blob.OwnerID != currentUser.UserId && currentUser.Role != constants.Admin && currentUser.Role != constants.Mod) {
 		c.JSON(http.StatusForbidden, gin.H{
 			"message": "You do not have permission to download this file",
 		})

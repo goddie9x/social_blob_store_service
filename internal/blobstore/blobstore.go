@@ -205,7 +205,7 @@ func (bs *BlobStore) DeleteBlob(id string, currentUser middlewares.UserAuth) err
 	if err != nil {
 		return err
 	}
-	if blob.OwnerID != currentUser.UserId && currentUser.Role == constants.User {
+	if currentUser.UserId == "" || (blob.OwnerID != currentUser.UserId && currentUser.Role != constants.Admin && currentUser.Role != constants.Mod) {
 		return fmt.Errorf("You do not have permission")
 	}
 	tx, err := conn.Begin(ctx)
