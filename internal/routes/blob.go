@@ -17,8 +17,10 @@ func StartMappingBlobRoute(r *gin.Engine, handler *api.Handler) {
 		{
 			blobs := v1.Group("/blobs")
 			{
-				blobs.GET("/download/:id", handler.DownloadBlob)
+				// Auth middleware must be registered BEFORE the routes -
+				// Gin only applies Use() to routes registered after it.
 				blobs.Use(middlewares.PutAuthToContext)
+				blobs.GET("/download/:id", handler.DownloadBlob)
 				blobs.POST("/upload", handler.UploadBlobs)
 				blobs.DELETE("/delete/:id", handler.DeleteBlob)
 			}

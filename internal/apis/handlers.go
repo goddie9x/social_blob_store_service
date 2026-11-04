@@ -2,6 +2,7 @@ package api
 
 import (
 	"blob_store_service/internal/blobstore"
+	"github.com/goddie9x/social_utils_go/constants"
 	"github.com/goddie9x/social_utils_go/middlewares"
 	"mime/multipart"
 	"strconv"
@@ -120,11 +121,19 @@ func (h *Handler) GetListBlobInfoWithPagination(c *gin.Context) {
 	h.bs.GetListBlobWithPagination(10, pageParam, filter)
 }
 func (h *Handler) DownloadBlob(c *gin.Context) {
+	currentUser := middlewares.GetUserAuthFromContext(c)
 	id := c.Param("id")
 	blob, err := h.bs.GetBlob(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": err.Error(),
+		})
+		return
+	}
+	// Only the owner (or admin/mod) can download - no anonymous access.
+	if blob.OwnerID != currentUser.UserId && currentUser.Role == constants.User {
+		c.JSON(http.StatusForbidden, gin.H{
+			"message": "You do not have permission to download this file",
 		})
 		return
 	}
